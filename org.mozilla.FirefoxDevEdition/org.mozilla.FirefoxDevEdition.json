@@ -1,11 +1,12 @@
 {
     "app-id": "org.mozilla.FirefoxDevEdition",
     "runtime": "org.gnome.Platform",
+<<<<<<< HEAD
     "runtime-version": "3.30",
+=======
+    "runtime-version": "3.34",
+>>>>>>> 3c6d09da30189b84095de3fe26fb3e494b424911
     "sdk": "org.gnome.Sdk",
-    "sdk-extensions" : [
-        "org.freedesktop.Sdk.Extension.rust-stable"
-    ],
     "command": "firefox",
     /*"tags": [""],*/
     "desktop-file-name-suffix": " Developer Edition",
@@ -31,10 +32,13 @@
         "--filesystem=~/.config/dconf:ro",
         "--env=DCONF_USER_CONFIG_DIR=.config/dconf",
         /* Required for file reveal in file manager */
-        "--socket=session-bus"
+        "--socket=session-bus",
+        /* Native notifications */
+        "--talk-name=org.freedesktop.Notifications",
+        /* Enable kerberos support */
+        "--filesystem=/run/.heim_org.h5l.kcm-socket"
     ],
     "build-options" : {
-        "append-path" : "/usr/lib/sdk/rust-stable/bin",
         "cflags": "-O2 -g",
         "cxxflags": "-O2 -g",
         "env": {
@@ -45,14 +49,27 @@
                 "/share/pkgconfig", "/share/aclocal",
                 "/man", "/share/man", "/share/gtk-doc",
                 "*.la", "*.a"],
+    "cleanup-commands": [ "/app/lib/rustlib/uninstall.sh"],
     "modules": [
+      "shared-modules/gtk2/gtk2.json",
+      "shared-modules/python2.7/python-2.7.json",
+      "shared-modules/dbus-glib/dbus-glib-0.110.json",
       {   "name": "nodejs",
           "make-install-args": ["prefix=/app"],
+          "post-install": [
+              "mv /app/bin/node /app/bin/real-node",
+              "install --mode=755 node-stdout-nonblocking-wrapper /app/bin/node"
+          ],
           "sources": [
               {
                   "type": "archive",
                   "url": "https://nodejs.org/dist/v8.12.0/node-v8.12.0.tar.gz",
                   "sha256" : "b4797843136edd9195c28221a1680ae52c29d867fc5fc1c99f7d6e2f2126a67b"
+              },
+              {
+                  "type": "script",
+                  "dest-filename": "node-stdout-nonblocking-wrapper",
+                  "commands": [ 'exec real-node "$@" 2>&1 | cat -' ]
               }
           ]
       },
@@ -64,6 +81,16 @@
                 "type": "archive",
                 "url": "http://ftp.gnu.org/gnu/autoconf/autoconf-2.13.tar.gz",
                 "sha256": "f0611136bee505811e9ca11ca7ac188ef5323a8e2ef19cffd3edb3cf08fd791e"
+            }
+          ]
+      },
+      {
+          "name": "nasm",
+          "sources": [
+            {
+                "type": "archive",
+                "url": "https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/nasm-2.14.02.tar.bz2",
+                "sha256": "34fd26c70a277a9fdd54cb5ecf389badedaf48047b269d1008fbc819b24e80bc"
             }
           ]
       },
@@ -90,11 +117,54 @@
             ]
       },
       {
+            "name":"rust",
+            "build-options" : { "no-debuginfo": true, "strip":false }, /* Stripped rust does not work */
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://static.rust-lang.org/dist/rust-1.39.0-x86_64-unknown-linux-gnu.tar.gz",
+                    "sha256": "b10a73e5ba90034fe51f0f02cb78f297ed3880deb7d3738aa09dc5a4d9704a25"
+                },
+                {
+                    "type": "script",
+                    "commands": ["#!/bin/bash", "#empty configure", "exit 0"],
+                    "dest-filename": "configure"
+                },
+                {
+                    "type": "script",
+                    "commands": ["all:",
+                                 "	echo 'Nothing to do'",
+                                 "install:", 
+                                 "	./install.sh --prefix=/app"
+                                ],
+                    "dest-filename": "Makefile"
+                },
+                {
+                    "type": "script",
+                    "commands": ["#!/bin/bash", "#empty configure", "exit 0"]
+                },
+                {
+                    "type": "shell",
+                    "commands": ["chmod +x configure"]
+                },
+                {
+                    "type": "patch",
+                    "path": "rust-uninstall.patch"
+                }
+            ]
+
+      },
+      {
           "name": "firefox",
           "build-options" : {
             "env": {
-              "STRIP": "/bin/true"
-            }
+              "STRIP": "/bin/true",
+              "CC": "gcc",
+              "CXX":"g++",
+              "NM":"gcc-nm",
+              "RANLIB":"gcc-ranlib"
+            },
+           "no-debuginfo" : true
           },
           "buildsystem": "simple",
             "build-commands": [
@@ -112,6 +182,10 @@
               {
                   "type": "patch",
                   "path": "firefox-makeinstall.patch"
+              },
+              {
+                  "type": "patch",
+                  "path": "disable-elfhack.patch"
               },
               {
                   "type": "patch",

@@ -1,7 +1,11 @@
 {
     "app-id": "org.mozilla.FirefoxNightly",
     "runtime": "org.gnome.Platform",
+<<<<<<< HEAD
     "runtime-version": "3.30",
+=======
+    "runtime-version": "3.28",
+>>>>>>> 3c6d09da30189b84095de3fe26fb3e494b424911
     "sdk": "org.gnome.Sdk",
     "sdk-extensions" : [
         "org.freedesktop.Sdk.Extension.rust-stable"
@@ -38,6 +42,8 @@
         "--system-talk-name=org.freedesktop.NetworkManager",
         /* Accessibility support */
         "--talk-name=org.a11y.Bus",
+        /* Native notifications */
+        "--talk-name=org.freedesktop.Notifications",
         /* For screenshot inhibiting */
         "--talk-name=org.gnome.SessionManager",
         "--talk-name=org.freedesktop.ScreenSaver",
@@ -59,11 +65,20 @@
     "modules": [
       {   "name": "nodejs",
           "make-install-args": ["prefix=/app"],
+          "post-install": [
+              "mv /app/bin/node /app/bin/real-node",
+              "install --mode=755 node-stdout-nonblocking-wrapper /app/bin/node"
+          ],
           "sources": [
               {
                   "type": "archive",
                   "url": "https://nodejs.org/dist/v8.12.0/node-v8.12.0.tar.gz",
                   "sha256" : "b4797843136edd9195c28221a1680ae52c29d867fc5fc1c99f7d6e2f2126a67b"
+              },
+              {
+                  "type": "script",
+                  "dest-filename": "node-stdout-nonblocking-wrapper",
+                  "commands": [ 'exec real-node "$@" 2>&1 | cat -' ]
               }
           ]
       },
@@ -75,6 +90,16 @@
                 "type": "archive",
                 "url": "http://ftp.gnu.org/gnu/autoconf/autoconf-2.13.tar.gz",
                 "sha256": "f0611136bee505811e9ca11ca7ac188ef5323a8e2ef19cffd3edb3cf08fd791e"
+            }
+          ]
+      },
+      {
+          "name": "nasm",
+          "sources": [
+            {
+                "type": "archive",
+                "url": "http://www.nasm.us/pub/nasm/releasebuilds/2.13.03/nasm-2.13.03.tar.bz2",
+                "sha256": "63ec86477ad3f0f6292325fd89e1d93aea2e2fd490070863f17d48f7cd387011"
             }
           ]
       },
@@ -119,13 +144,14 @@
           "name": "firefox",
           "build-options" : {
             "env": {
-              "STRIP": "/bin/true"
-            }
+              "NOSTRIP": "/bin/true"
+            },
+           "no-debuginfo" : true
           },
           "buildsystem": "simple",
             "build-commands": [
                "env CARGO_HOME=.cargo cargo install cbindgen",
-               "env PATH=/run/build/firefox/.cargo/bin:$PATH ./mach build -j4",
+               "env PATH=/run/build/firefox/.cargo/bin:$PATH RUST_LOG=debug ./mach build -v -j4",
                "env prefix=/app make install"
             ],
         "make-install-args": ["prefix=/app"],
@@ -142,10 +168,6 @@
               {
                   "type": "patch",
                   "path": "mozlog-no-blessings-req.patch"
-              },
-              {
-                  "type": "patch",
-                  "path": "firefox-pipewire.patch"
               },
               {
                   "type": "file",
