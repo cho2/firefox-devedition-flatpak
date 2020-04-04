@@ -12,6 +12,9 @@ else
   APP_NAME=$1
 fi
 
+# Append Cargo bin directory to PATH, considering CARGO_HOME if set.
+PATH="$PATH:${CARGO_HOME:-$HOME/.cargo}/bin"
+
 if [ -f $APP_NAME/prepare_sources ]; then
   cd $APP_NAME
   if ./prepare_sources; then
@@ -19,7 +22,7 @@ if [ -f $APP_NAME/prepare_sources ]; then
   else
     echo "Preparing sources failed: sources are required to start build of the package..."
     echo "Check above output for failure."
-    exit 1
+    #exit 1
   fi
   cd -
 fi
